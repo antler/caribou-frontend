@@ -9,7 +9,7 @@
         [ring.middleware.session :only (wrap-session)]
         [ring.util.response :only (resource-response file-response)])
   (:require [flatland.ordered.map :as flatland]
-            [ns-tracker.core :as ns-tracker]
+            [clojure.tools.namespace.repl :refer [refresh]]
             [clojure.string :as string]
             [caribou.logger :as log]
             [caribou.util :as util]
@@ -60,28 +60,6 @@
   (-> (routing/router (deref (config/draw :routes)))
       (middleware/wrap-custom-middleware)))
 
-(declare reset-handler)
-
-(def modified-namespaces
-  (ns-tracker/ns-tracker ["src"]))
-
-(defn handler
-  [reset]
-  (let [handler (make-handler)]
-    (reset! (config/draw :handler) handler)
-    (reset! (config/draw :reset) reset)
-    (fn [request]
-      (if (config/draw :controller :reload)
-        (let [stale (modified-namespaces)]
-          (if (seq stale)
-            (do
-              (doseq [ns-sym stale]
-                (log/info (str "Reloading: " ns-sym))
-                (require :reload ns-sym))
-              (reset-handler)))))
-      (let [handler (deref (config/draw :handler))]
-        (handler request)))))
-
 (defn trigger-reset
   []
   ((deref (config/draw :reset))))
@@ -91,3 +69,15 @@
   (reset! (config/draw :routes) (flatland/ordered-map))
   (trigger-reset)
   (reset! (config/draw :handler) (make-handler)))
+
+(defn handler
+  [reset]
+  (let [handler (make-handler)]
+    (reset! (config/draw :handler) handler)
+    (reset! (config/draw :reset) reset)
+    (fn [request]
+      (when (config/draw :controller :reload)
+        (refresh)
+        (reset-handler))
+      (let [handler (deref (config/draw :handler))]
+        (handler request)))))
