@@ -9,7 +9,7 @@
         [ring.middleware.session :only (wrap-session)]
         [ring.util.response :only (resource-response file-response)])
   (:require [flatland.ordered.map :as flatland]
-            [clojure.tools.namespace.repl :refer [refresh]]
+            [clojure.tools.namespace.repl :as ns.repl]
             [clojure.string :as string]
             [caribou.logger :as log]
             [caribou.util :as util]
@@ -22,8 +22,6 @@
             [caribou.app.routing :as routing]
             [caribou.app.template :as template]
             [caribou.app.util :as app-util]))
-
-(declare reset-handler)
 
 (defn use-public-wrapper
   [handler public-dir]
@@ -77,7 +75,8 @@
     (reset! (config/draw :reset) reset)
     (fn [request]
       (when (config/draw :controller :reload)
-        (refresh)
+        (with-bindings {#'*ns* *ns*}
+          (ns.repl/refresh :after `reset-handler))
         (reset-handler))
       (let [handler (deref (config/draw :handler))]
         (handler request)))))
