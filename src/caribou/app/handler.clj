@@ -75,6 +75,9 @@
     (reset! (config/draw :reset) reset)
     (fn [request]
       (when (config/draw :controller :reload)
+        ;; with-bindings: for some reason, ns.repl invokes in-ns
+        ;; (repl.clj:95) which can't set! *ns* when it's not bound
+        ;; thread-locally (e. g. in lein ring server)
         (with-bindings {#'*ns* *ns*}
           (ns.repl/refresh :after `reset-handler))
         (reset-handler))
