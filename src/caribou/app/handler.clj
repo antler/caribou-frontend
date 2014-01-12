@@ -79,7 +79,6 @@
         ;; (repl.clj:95) which can't set! *ns* when it's not bound
         ;; thread-locally (e. g. in lein ring server)
         (with-bindings {#'*ns* *ns*}
-          (ns.repl/refresh :after `reset-handler))
-        (reset-handler))
+          (ns.repl/refresh :after `reset-handler)))
       (let [handler (deref (config/draw :handler))]
         (handler request)))))
