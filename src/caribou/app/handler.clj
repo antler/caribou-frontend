@@ -11,15 +11,14 @@
   (:require [flatland.ordered.map :as flatland]
             [clojure.tools.namespace.repl :as ns.repl]
             [clojure.string :as string]
+            [polaris.core :as polaris]
             [caribou.logger :as log]
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.core :as caribou]
             [caribou.app.middleware :as middleware]
-            [caribou.app.pages :as pages]
             [caribou.app.error :as error]
             [caribou.app.request :as request]
-            [caribou.app.routing :as routing]
             [caribou.app.template :as template]
             [caribou.app.util :as app-util]))
 
@@ -28,12 +27,6 @@
   (if public-dir
     (fn [request] ((wrap-resource handler public-dir) request))
     (fn [request] (handler request))))
-
-(defn init-routes
-  []
-  (middleware/add-custom-middleware middleware/wrap-xhr-request)
-  (let [routes (routing/routes-in-order (deref (config/draw :routes)))]
-    (routing/add-head-routes)))
 
 (defn wrap-caribou
   [handler config]
@@ -51,34 +44,25 @@
                 (error/render-error :500 request)))))
         (handler request)))))
 
-(defn make-handler
-  [& args]
-  (init-routes)
-  (template/init)
-  (-> (routing/router (deref (config/draw :routes)))
-      (middleware/wrap-custom-middleware)))
-
-(defn trigger-reset
-  []
-  ((deref (config/draw :reset))))
-
-(defn reset-handler
-  []
-  (reset! (config/draw :routes) (flatland/ordered-map))
-  (trigger-reset)
-  (reset! (config/draw :handler) (make-handler)))
+(defn make-router
+  [reset]
+  (let [routes (polaris/build-routes (reset))]
+    (reset! (config/draw :routes) routes)
+    (polaris/router routes)))
 
 (defn handler
   [reset]
-  (let [handler (make-handler)]
-    (reset! (config/draw :handler) handler)
-    (reset! (config/draw :reset) reset)
+  (let [handler (atom (make-router reset))]
     (fn [request]
       (when (config/draw :controller :reload)
         ;; with-bindings: for some reason, ns.repl invokes in-ns
         ;; (repl.clj:95) which can't set! *ns* when it's not bound
         ;; thread-locally (e. g. in lein ring server)
         (with-bindings {#'*ns* *ns*}
-          (ns.repl/refresh :after `reset-handler)))
-      (let [handler (deref (config/draw :handler))]
-        (handler request)))))
+          (ns.repl/refresh)))
+      (let [response (@handler request)]
+        (if (:reset-handler response)
+          (do
+            (reset! handler (make-router reset))
+            (dissoc response :reset-handler))
+          response)))))
