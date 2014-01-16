@@ -1,4 +1,5 @@
 (defproject caribou/caribou-frontend "0.13.8"
+  
   :description "The page routing ring handler for caribou"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [caribou/caribou-core "0.13.8"]
@@ -17,10 +18,10 @@
                  [clj-stacktrace "0.2.5"]
                  [hiccup "1.0.2"]
                  [cheshire "5.0.2"]
+                 [org.clojure/tools.namespace "0.2.4"]
                  [clojure-csv/clojure-csv "2.0.1"]
                  [org.clojure/data.xml "0.0.7"]
-                 [org.flatland/ordered "1.4.0"]
-                 [ns-tracker "0.2.1"]]
+                 [org.flatland/ordered "1.4.0"]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :ring {:handler caribou.app.core/handler
          :init caribou.app.core/init

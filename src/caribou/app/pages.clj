@@ -1,5 +1,4 @@
 (ns caribou.app.pages
-  (:use [ns-tracker.core :only (ns-tracker)])
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
             [clojure.string :as string]

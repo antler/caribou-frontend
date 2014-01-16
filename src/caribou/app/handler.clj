@@ -9,7 +9,7 @@
         [ring.middleware.session :only (wrap-session)]
         [ring.util.response :only (resource-response file-response)])
   (:require [flatland.ordered.map :as flatland]
-            [ns-tracker.core :as ns-tracker]
+            [clojure.tools.namespace.repl :as ns.repl]
             [clojure.string :as string]
             [polaris.core :as polaris]
             [caribou.logger :as log]
@@ -45,29 +45,30 @@
         (handler request)))))
 
 (defn make-router
-  [reset]
-  (let [routes (polaris/build-routes (reset))]
+  [routes]
+  (let [routes (polaris/build-routes routes)]
     (reset! (config/draw :routes) routes)
     (polaris/router routes)))
 
-(def modified-namespaces
-  (ns-tracker/ns-tracker ["src"]))
-
 (defn handler
   [reset]
-  (let [handler (atom (make-router reset))]
+  (let [get-routes (if (symbol? reset)
+                      #((-> reset
+                            resolve))
+                      reset)
+        handler (atom (make-router (get-routes)))
+        reset-handler! #(reset! handler (make-router (get-routes)))]
     (fn [request]
-      (if (config/draw :controller :reload)
-        (let [stale (modified-namespaces)]
-          (if (seq stale)
-            (do
-              (doseq [ns-sym stale]
-                (log/info (str "Reloading: " ns-sym))
-                (require :reload ns-sym))
-              (reset! handler (make-router reset))))))
+      (when (config/draw :controller :reload)
+        ;; with-bindings: for some reason, ns.repl invokes in-ns
+        ;; (repl.clj:95) which can't set! *ns* when it's not bound
+        ;; thread-locally (e. g. in lein ring server)
+        (with-bindings {#'*ns* *ns*}
+          (ns.repl/refresh))
+        (reset-handler!))
       (let [response (@handler request)]
         (if (:reset-handler response)
           (do
-            (reset! handler (make-router reset))
+            (reset-handler!)
             (dissoc response :reset-handler))
           response)))))
