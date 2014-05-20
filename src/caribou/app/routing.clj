@@ -58,7 +58,6 @@
 
 (defn add-route
   [slug method path action]
-  (log/debug (format "adding route %s : %s -- %s %s " slug (deslash slug) path method) :routing)
   (swap! (config/draw :routes) merge-route slug method path action))
 
 (defn routes-in-order
